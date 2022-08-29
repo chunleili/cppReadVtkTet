@@ -2,6 +2,7 @@
 #include <fstream>
 #include <algorithm>
 #include <list>
+#include <set>
 #include <tuple>
 #include <vector>
 #include <filesystem>
@@ -10,13 +11,16 @@
 using vec3f = std::array<float,3>;
 using vec4i = std::array<int,4>;
 using vec3i = std::array<int,3>;
+using vec2i = std::array<int,2>;
 
 struct ReadVtkTet{
 private:
     void extractSurf();
+    void extractEdge();
     std::vector<vec3f> pos;
     std::vector<vec4i> quads;
     std::vector<vec3i> surfs;
+    std::vector<vec2i> edges;
 public:
     void apply() {
     std::string path = "E:\\codes\\read_vtk_tet\\cppReadVtkTet\\Armadillo13K.vtk";
@@ -38,6 +42,7 @@ public:
     }
 
     extractSurf();
+    extractEdge();
   }
 };
 
@@ -152,6 +157,7 @@ void ReadVtkTet::extractSurf()
             f_surf<<x<<"\t";
         f_surf<<"\n";
     }
+    f_surf.close();
 
     f_pos.open("pos.txt");
     for(const auto& f:pos)
@@ -163,6 +169,54 @@ void ReadVtkTet::extractSurf()
     f_pos.close();
 }
 
+
+void ReadVtkTet::extractEdge()
+{   
+    //use the std::set to maintain the uniqueness of edges
+    std::set<std::set<int>> edgeSet;
+    for (int i = 0; i < quads.size(); i++)
+    {
+        std::array<int,4> tet=quads[i];
+        
+        int t0 = tet[0];
+        int t1 = tet[1];
+        int t2 = tet[2];
+        int t3 = tet[3];
+
+        std::set<int> l0{t0, t1}, l1{t0, t2}, l2{t0, t3},
+                      l3{t1, t2}, l4{t1, t3}, l5{t2, t3};
+        
+        edgeSet.insert(l0);
+        edgeSet.insert(l1);
+        edgeSet.insert(l2);
+        edgeSet.insert(l3);
+        edgeSet.insert(l4);
+        edgeSet.insert(l5);
+    }
+
+    //copy back from set
+    size_t numEdges = edgeSet.size();
+    edges.reserve(numEdges);
+    for(auto &&line : edgeSet)
+    {
+        vec2i to;
+        std::copy(line.begin(), line.end(), to.begin());
+        edges.push_back(to);
+    }
+    
+
+    std::cout<<"after extractEdge numEdges: "<<edges.size()<<std::endl;
+
+    std::ofstream f_lines;
+    f_lines.open("edges.txt");
+    for(const auto& f:edges)
+    {
+        for(const auto& x:f)
+            f_lines<<x<<"\t";
+        f_lines<<"\n";
+    }
+    f_lines.close();
+}
 
 int main(){
     ReadVtkTet a;
